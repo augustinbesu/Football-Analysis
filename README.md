@@ -20,8 +20,8 @@ Una herramienta de visión por computadora para el análisis en tiempo real de p
 
 1. Clona este repositorio:
 ```bash
-git clone https://github.com/tu-usuario/analisis-futbol.git
-cd analisis-futbol
+git clone https://github.com/augustinbesu/Football-Analysis.git
+cd Football-Analysis
 ```
 
 2. Instala las dependencias:
