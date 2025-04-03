@@ -1,6 +1,6 @@
 # Proyecto de Análisis de Fútbol
 
-Una herramienta de visión por computadora para el análisis en tiempo real de partidos de fútbol, seguimiento de jugadores y visualización táctica. Este proyecto utiliza detección de objetos y estimación de pose con YOLOv8 para mapear jugadores y el balón en una vista táctica 2D del campo de fútbol.
+Una herramienta de visión por ordenador para el análisis en tiempo real de partidos de fútbol (enfocado en la Bundesliga), seguimiento de jugadores y visualización táctica. Este proyecto utiliza detección de objetos para mapear jugadores y el balón, además de usar un detector de poses para obtener una vista táctica 2D del campo de fútbol. Todo esto está hecho con YOLOv8.
 
 ## 🚀 Características
 
