@@ -220,7 +220,6 @@ La clase principal que coordina todo el proceso de análisis:
 - **run()**:
   - Bucle principal para procesamiento de vídeo
   - Maneja la visualización y grabación de resultados
-  - Controla la interfaz de usuario (pausa, avance, salida)
 
 - **cluster_teams(frame, player_boxes, min_confidence=0.7)**:
   - Separa jugadores en equipos mediante análisis de color y K-means
