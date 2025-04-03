@@ -237,14 +237,6 @@ Clase de utilidad para manejar la visualización y coordenadas del campo:
 - **get_field_coordinates()**:
   - Calcula y retorna coordenadas precisas de todos los puntos clave del campo
 
-## 🔍 Aplicaciones prácticas
-
-- **Análisis táctico**: Visualizar formaciones y movimientos de equipo
-- **Análisis de rendimiento**: Seguimiento de distancias recorridas por jugadores
-- **Detección de patrones**: Identificar estrategias comunes y movimientos de juego
-- **Análisis de espacios**: Evaluar la ocupación del campo y creación de espacios
-- **Estadísticas avanzadas**: Generar métricas sobre posesión zonal y presión
-
 ## 📝 Licencia
 
 Licencia MIT
