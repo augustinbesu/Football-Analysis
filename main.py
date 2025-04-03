@@ -8,7 +8,7 @@ from utils import FieldUtils
 from sklearn.cluster import KMeans
 
 class HomographyTester:
-    def __init__(self, pose_model_path, player_model_path, video_path, json_path, show_mapped=False, save_output=False):
+    def __init__(self, pose_model_path, player_model_path, video_path, json_path, save_output=False):
         # Cargar modelos
         self.pose_model = YOLO(pose_model_path)
         self.player_model = YOLO(player_model_path)
@@ -18,7 +18,6 @@ class HomographyTester:
         self.cap = cv2.VideoCapture(video_path)
         
         # Opciones de visualización y guardado
-        self.show_mapped = show_mapped
         self.save_output = save_output
         self.video_writers = {}
         
@@ -539,13 +538,6 @@ class HomographyTester:
                         cv2.circle(field_view, (int(pos[0]), int(pos[1])), 4, (0, 255, 0), -1)  # Verde sólido
                         cv2.circle(field_view, (int(pos[0]), int(pos[1])), 4, (0, 0, 0), 1)     # Contorno negro
         
-        # Mostrar vista superpuesta si está activada la opción
-        if self.show_mapped:
-            # Ahora points_view ya contiene los puntos dibujados sobre el frame original
-            display_frame_mapped = points_view
-        else:
-            display_frame_mapped = display_frame
-        
         return display_frame, field_view, points_view, mapped_view
 
     def run(self):
@@ -571,14 +563,8 @@ class HomographyTester:
             # Mostrar resultados
             cv2.imshow('Video', display_frame)
             cv2.imshow('Minimapa', field_view)
-            
-            # Si --mapped está activo, mostrar los puntos del campo sobre el video
-            if self.show_mapped:
-                cv2.imshow('Puntos del Campo', points_view)
-            else:
-                # Mantener la ventana de puntos separada
-                cv2.imshow('Puntos del Campo', points_view)
-                cv2.imshow('Puntos Mapeados', mapped_view)
+            cv2.imshow('Puntos del Campo', points_view)
+            cv2.imshow('Puntos Mapeados', mapped_view)
             
             # Controles
             key = cv2.waitKey(1) & 0xFF
@@ -716,9 +702,8 @@ def main():
     
     args = parser.parse_args()
     
-    # Simplemente pasamos True como valor por defecto para show_mapped
     tester = HomographyTester(args.pose_model, args.player_model, args.video, args.mapping_file, 
-                             show_mapped=True, save_output=args.save)
+                             save_output=args.save)
     tester.run()
 
 if __name__ == "__main__":

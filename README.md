@@ -29,9 +29,15 @@ cd Football-Analysis
 pip install -r requirements.txt
 ```
 
-3. Descarga los pesos de los modelos:
-   - Coloca el modelo de detección de puntos del campo en `models/field-keypoints-detection/weights/best.pt`
-   - Coloca el modelo de detección de jugadores y balón en `models/players-ball-detection/weights/best.pt`
+### 3. Modelos Preentrenados  
+
+Los siguientes modelos ya han sido entrenados y están disponibles:  
+
+- **Detector de poses**: [`models/field-keypoints-detection/weights/best.pt`](models/field-keypoints-detection/weights/best.pt)  
+- **Detector de jugadores y pelota**: [`models/players-ball-detection/weights/best.pt`](models/players-ball-detection/weights/best.pt)  
+
+Si deseas entrenar tus propios modelos, puedes utilizar los conjuntos de datos disponibles en las carpetas `football-dataset` y `keypoints-field`, ambos descargados desde [Roboflow](https://roboflow.com/).
+
 
 ## 💻 Uso
 
@@ -85,24 +91,7 @@ Al utilizar la opción `--save`, se generan los siguientes archivos en la carpet
 - `[nombre_video]_puntos.mp4`: Vídeo con puntos del campo superpuestos
 - `[nombre_video]_mapeados.mp4`: Vista del campo con puntos detectados
 
-## 🧪 Estructura del proyecto
-
-- `main.py`: Script principal de análisis con la clase HomographyTester
-- `field_mapping.py`: Herramienta interactiva para crear mapeos de puntos
-- `utils.py`: Funciones de utilidad para visualización del campo y manejo de coordenadas
-- `point_mapping.json`: Mapeo entre puntos clave del detector y coordenadas del campo
-- `models`: Directorio que contiene los modelos de detección entrenados
-- `results`: Directorio de salida para los vídeos guardados
-
 ## 🛠️ Cómo funciona
-
-1. **Detección**: El sistema utiliza dos modelos YOLOv8: uno para la detección de puntos del campo y otro para la detección de jugadores/balón
-2. **Homografía**: Se calcula una matriz de transformación de perspectiva utilizando los puntos del campo detectados
-3. **Seguimiento**: Se realiza un seguimiento en tiempo real de jugadores y el balón mediante una combinación de algoritmos de detección y seguimiento
-4. **Clasificación de equipos**: El agrupamiento K-means en colores de camisetas diferencia entre equipos
-5. **Visualización**: Todas las detecciones se visualizan en el vídeo original y se mapean en una vista táctica del campo
-
-## ⚙️ Detalles técnicos
 
 ### Detección de puntos del campo
 
@@ -113,18 +102,22 @@ El sistema identifica puntos específicos en el campo de fútbol como:
 - Puntos de esquina del área de penalti (10-13, 21-24)
 - Puntos de esquina del área pequeña (16-19, 27-30)
 
-La detección de estos puntos se realiza mediante un modelo YOLOv8 personalizado entrenado específicamente para reconocer elementos característicos del campo de fútbol. El modelo está optimizado para funcionar en diferentes condiciones de iluminación y ángulos de cámara.
+La detección de estos puntos se realiza mediante un modelo YOLOv8 entrenado específicamente para reconocer elementos característicos del campo de fútbol. El modelo está optimizado para funcionar en diferentes condiciones de iluminación y ángulos de cámara.
+
+Cada punto detectado incluye un valor de confianza (0.0-1.0) que representa la certeza del modelo. Se aplica un umbral de confianza fijo de 0.5 para filtrar detecciones poco fiables.
+
+El sistema también guarda información sobre cuándo se vio cada punto por última vez mediante el diccionario `point_last_seen`. Esto permite identificar si un punto está siendo directamente detectado o si se está utilizando su última posición conocida.
 
 ### Mapeo de homografía
 
-La homografía es una transformación matemática que permite convertir coordenadas entre diferentes planos o perspectivas. En este proyecto:
+La homografía permite convertir coordenadas entre el plano de la imagen del vídeo y una representación 2D del campo. En este proyecto:
 
-1. Se detectan puntos clave del campo en el vídeo (líneas, círculos, etc.)
-2. Se establece una correspondencia entre estos puntos y sus ubicaciones en un modelo 2D del campo
+1. Se detectan puntos clave del campo en el vídeo
+2. Se establece una correspondencia entre estos puntos y sus ubicaciones en el modelo 2D del campo
 3. Se calcula una matriz de homografía utilizando el algoritmo RANSAC para mayor robustez frente a outliers
 4. Esta matriz se utiliza para transformar las posiciones de los jugadores y el balón del plano de la imagen al plano 2D del campo
 
-El algoritmo implementa suavizado temporal de la matriz de homografía para evitar saltos bruscos en la visualización táctica.
+El algoritmo implementa suavizado temporal simple (70% de la matriz anterior + 30% de la nueva) para evitar saltos bruscos en la visualización táctica.
 
 ### Agrupamiento de equipos
 
@@ -135,7 +128,22 @@ Los jugadores se asignan a equipos mediante el siguiente proceso:
 3. Se utiliza agrupamiento K-means para identificar los dos colores principales de equipo
 4. Se asigna cada jugador al clúster de color de equipo más cercano
 
-El sistema mantiene un modelo de color para cada equipo que se actualiza dinámicamente durante el análisis, lo que permite manejar cambios en la iluminación o en el ángulo de la cámara.
+**Optimizaciones en el muestreo de color:**
+En lugar de analizar todo el bounding box de cada jugador (lo que sería computacionalmente costoso), el código extrae una región central y reducida:
+
+```python
+# Calcular el centro del bounding box
+center_x = x1 + width // 2
+center_y = y1 + height // 3  # Un poco más arriba del centro para capturar mejor la camiseta
+
+# Definir una región del 50% alrededor del centro
+sample_width = width // 2  # 50% del ancho
+sample_height = height // 2  # 50% del alto
+```
+
+Esta optimización permite un procesamiento mucho más rápido sin sacrificar la precisión en la clasificación de equipos, ya que la parte central del bounding box generalmente contiene los colores más representativos del uniforme.
+
+El sistema acumula muestras de color hasta alcanzar un mínimo de 20 muestras antes de inicializar los colores de referencia de cada equipo. Una vez establecidos estos colores de referencia, se utilizan para clasificar nuevos jugadores detectados según la similitud de color.
 
 ### Detección y seguimiento del balón
 
@@ -143,40 +151,50 @@ El balón se detecta utilizando un modelo YOLOv8 específico. Debido a su peque�
 
 1. Detección inicial con alta confianza
 2. Seguimiento mediante el algoritmo CSRT (Discriminative Correlation Filter with Channel and Spatial Reliability)
-3. Restablecimiento del seguimiento cuando la detección se pierde por un número determinado de frames
+3. Restablecimiento del seguimiento cuando la detección se pierde por más de 30 frames
 
-### Optimización de rendimiento
+El código utiliza `cv2.TrackerCSRT_create()` para inicializar el seguimiento del balón cuando se detecta con alta confianza, y luego mantiene el seguimiento incluso cuando no hay detecciones nuevas:
 
-El sistema equilibra precisión y rendimiento mediante:
-- Configuración de umbrales de confianza para detecciones
-- Procesamiento selectivo de regiones de interés
-- Implementación de algoritmos de seguimiento eficientes
-- Paralelización de tareas donde es posible
+```python
+if not ball_detected:  # Solo usar tracking si no hay detección
+    success, bbox = self.ball_tracker.update(frame)
+    if success:
+        # Actualizar posición mediante tracking
+    else:
+        self.tracking_lost_frames += 1
+        if self.tracking_lost_frames > 30:  # Reset después de 30 frames
+            self.is_tracking_ball = False
+```
 
-## 📊 Métodos implementados
+### Visualización del campo
+
+El sistema genera varias visualizaciones:
+
+1. **Display Frame**: Muestra el vídeo original con cajas delimitadoras para jugadores, árbitros y el balón
+2. **Field View (Minimapa)**: Muestra una vista táctica 2D del campo con las posiciones mapeadas
+3. **Points View**: Muestra los puntos clave del campo detectados sobre el frame original
+4. **Mapped View**: Muestra los puntos clave mapeados en la representación 2D del campo
+
+Los colores se usan de manera consistente en todas las visualizaciones:
+- Equipo 1: Azul
+- Equipo 2: Rojo
+- Árbitros: Rosa
+- Balón: Verde con contorno negro (minimapa) o amarillo (frame original)
+- Puntos del perímetro: Rojo
+- Puntos del círculo central: Azul
+- Otros puntos: Verde
+
+## 📊 Componentes principales
 
 ### Clase HomographyTester
 
 La clase principal que coordina todo el proceso de análisis:
 
-- **__init__(pose_model_path, player_model_path, video_path, json_path, show_mapped=False, save_video=False)**: 
+- **__init__(pose_model_path, player_model_path, video_path, json_path, save_output=False)**: 
   - Inicializa modelos de YOLO para detección de puntos del campo y jugadores
-  - Carga el video de entrada y el mapeo de puntos desde un archivo JSON
+  - Carga el video de entrada y el mapeo de puntos desde el archivo JSON
   - Configura parámetros del campo (dimensiones, factor de escala)
   - Inicializa sistemas de seguimiento para el balón y clasificación de equipos
-  - Configura opciones de visualización y grabación basadas en parámetros
-  - Si `save_video=True`, crea los VideoWriters necesarios para guardar todas las salidas
-
-- **_scale_field_coordinates()**:
-  - Escala las coordenadas del campo cargadas desde el JSON al tamaño actual del campo de visualización
-  - Aplica factores de escala manteniendo proporciones y márgenes
-
-- **get_field_coordinates()**:
-  - Obtiene las coordenadas de los puntos clave del campo para el minimapa
-  - Usa coordenadas predefinidas o las calcula mediante FieldUtils
-
-- **create_field_image()**:
-  - Genera una imagen base del campo de fútbol con líneas y marcas
 
 - **get_mapped_points(keypoints)**:
   - Mapea puntos detectados por el modelo a puntos del campo usando un umbral de confianza
@@ -185,107 +203,39 @@ La clase principal que coordina todo el proceso de análisis:
 - **calculate_homography(mapped_points)**:
   - Calcula la matriz de homografía usando RANSAC para mayor robustez
   - Aplica suavizado temporal para evitar fluctuaciones entre frames
-  - Maneja casos donde no hay suficientes puntos o la homografía no se puede calcular
 
 - **transform_player_coordinates(player_points, H)**:
   - Transforma coordenadas de jugadores del plano de la imagen al minimapa
   - Valida y corrige puntos transformados para asegurar que estén dentro del campo
-  - Aplica recorte ("clipping") para puntos cercanos a los bordes
 
-- **create_field_points_view(mapped_points)**:
+- **create_field_points_view(frame, mapped_points)**:
   - Crea visualización de puntos del campo sobre el frame original
-  - Asigna colores según el tipo de punto (perímetro, círculo central, etc.)
-  - Muestra etiquetas con índices y valores de confianza
-
-- **create_mapped_points_view(mapped_points)**:
-  - Crea visualización de puntos mapeados directamente en el minimapa
-  - Usa el mismo esquema de colores que field_points_view para consistencia
+  - Asigna colores según el tipo de punto y muestra valores de confianza
 
 - **process_frame(frame)**:
-  - Procesa cada fotograma del vídeo realizando:
-    - Detección de puntos clave del campo
-    - Cálculo de homografía
-    - Detección de jugadores, árbitros y balón
-    - Clasificación de equipos mediante clustering
-    - Seguimiento del balón cuando no es detectado
-    - Transformación de coordenadas al espacio del minimapa
-  - Retorna los fotogramas procesados para visualización y grabación
+  - Procesa cada fotograma realizando la detección de puntos, jugadores y balón
+  - Maneja la clasificación de equipos y el seguimiento del balón
+  - Genera las diferentes visualizaciones
 
 - **run()**:
   - Bucle principal para procesamiento de vídeo
-  - Maneja la visualización de diferentes vistas
-  - Si `show_mapped=True`, crea una vista superpuesta del campo sobre el vídeo
-  - Si `save_video=True`, guarda todos los fotogramas procesados
-  - Gestiona controles de usuario (pausa, avance, salida)
+  - Maneja la visualización y grabación de resultados
+  - Controla la interfaz de usuario (pausa, avance, salida)
 
 - **cluster_teams(frame, player_boxes, min_confidence=0.7)**:
   - Separa jugadores en equipos mediante análisis de color y K-means
-  - Extrae regiones centrales de los jugadores para muestreo de color
-  - Convierte muestras a espacio HSV para mejor diferenciación
-  - Mantiene y actualiza modelos de color para cada equipo
-  - Asigna jugadores a equipos basándose en la similitud de color
+  - Extrae regiones centrales de los jugadores para muestreo optimizado
+  - Acumula muestras antes de inicializar los colores de referencia
 
 ### Clase FieldUtils
 
 Clase de utilidad para manejar la visualización y coordenadas del campo:
 
-- **__init__(field_width=800, margin=50)**:
-  - Inicializa las dimensiones del campo y márgenes
-  - Configura proporciones según estándares FIFA
-
 - **create_field_image()**:
-  - Genera una representación visual del campo con:
-    - Fondo verde con patrón de rayas
-    - Líneas blancas para perímetro y divisiones
-    - Círculo central y áreas de penalti
-    - Puntos de penalti y semicírculos
+  - Genera una representación visual del campo con líneas y marcas
 
 - **get_field_coordinates()**:
-  - Calcula y retorna coordenadas precisas de todos los puntos clave:
-    - Esquinas del campo
-    - Intersecciones de líneas centrales
-    - Puntos del círculo central
-    - Áreas grandes y pequeñas
-    - Puntos de penalti
-
-- **_draw_field_lines(field)**:
-  - Dibuja todas las líneas principales del campo
-  - Usa proporciones estándar para dimensiones de áreas y círculos
-
-- **_draw_penalty_arcs(field, margin, mid_y, big_box_width, circle_radius)**:
-  - Dibuja los arcos de las áreas de penalti con geometría precisa
-
-- **_draw_arc_outside_box(field, center, radius, box_x, is_left)**:
-  - Dibuja arcos con geometría correcta, calculando ángulos de inicio y fin
-  - Maneja diferentes casos para arcos izquierdo y derecho
-
-### Clase PointMapperApp (en field_mapping.py)
-
-Interfaz gráfica para el mapeo de puntos:
-
-- **__init__(root)**:
-  - Inicializa la interfaz gráfica de Tkinter
-  - Configura el canvas para visualización del campo
-  - Inicializa estructuras de datos para mapeo de puntos
-
-- **draw_field()**:
-  - Dibuja el campo en el canvas con todas las líneas y marcas
-
-- **draw_points()**:
-  - Dibuja los puntos disponibles para mapeo
-  - Usa colores diferentes para puntos ya mapeados
-
-- **on_click(event)**:
-  - Maneja eventos de clic para seleccionar puntos
-  - Actualiza el mapeo basado en la entrada del usuario
-
-- **save_mapping()**:
-  - Guarda el mapeo actual a la estructura de datos interna
-  - Actualiza la visualización para reflejar cambios
-
-- **export_json()**:
-  - Exporta el mapeo completo a formato JSON
-  - Incluye coordenadas y metadatos del campo
+  - Calcula y retorna coordenadas precisas de todos los puntos clave del campo
 
 ## 🔍 Aplicaciones prácticas
 
