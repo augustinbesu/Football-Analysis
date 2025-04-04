@@ -236,6 +236,3 @@ Clase de utilidad para manejar la visualización y coordenadas del campo:
 - **get_field_coordinates()**:
   - Calcula y retorna coordenadas precisas de todos los puntos clave del campo
 
-## 📝 Licencia
-
-Licencia MIT
