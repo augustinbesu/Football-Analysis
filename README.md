@@ -54,7 +54,7 @@ Esta herramienta interactiva te permite:
 - Asignar números de puntos clave del detector
 - Guardar el mapeo en `point_mapping.json`
 
-![foto1](https://github.com/user-attachments/assets/0dfb11ad-0da8-4398-8ccb-e482112c4b54)
+<div align="center"> <img src="https://github.com/user-attachments/assets/0dfb11ad-0da8-4398-8ccb-e482112c4b54" alt="foto1" width="600"/> </div>
 
 ### Análisis de vídeo
 
@@ -72,9 +72,8 @@ python main.py --video ruta/al/video.mp4
 - `--mapping_file`: Ruta al archivo de mapeo de puntos (por defecto: point_mapping.json)
 - `--save`: Guarda los vídeos de salida en la carpeta "results"
 
-https://github.com/user-attachments/assets/de4c433f-92de-4629-b510-de5e65f31b2a
-
-https://github.com/user-attachments/assets/645ecd5b-39ac-47d8-bbda-405cd82ffb25
+<div align="center"> <img src="https://github.com/user-attachments/assets/9a4eb900-89a3-440b-9e0a-6c290323ff2b" alt="output video" width="600"/> 
+</div> <div align="center"> <img src="https://github.com/user-attachments/assets/a0962319-277e-48d9-8439-a72acc7fa5fb" alt="minimapa" width="600"/> </div>
 
 #### Ejemplos
 
